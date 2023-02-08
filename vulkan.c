@@ -15,8 +15,12 @@ glfwSetCharModsCallback - triggers when a Unicode character is input with a
 specific modifier. glfwSetJoystickCallback - triggers when a joystick is
 connected or disconnected */
 
+/* TODO: figure out how to properly set VK to resize and draw black */
+
 GLFWwindow *window;
 VkInstance instance;
+VkInstanceCreateInfo createInfo = {};
+VkSurfaceKHR surface;
 
 void initVK(void) {
   VkApplicationInfo appInfo = {};
@@ -25,46 +29,41 @@ void initVK(void) {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.apiVersion = VK_API_VERSION_1_3;
 
-  VkInstanceCreateInfo createInfo = {};
+  uint32_t count;
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
-  createInfo.enabledExtensionCount = 0;
+  createInfo.ppEnabledExtensionNames =
+      glfwGetRequiredInstanceExtensions(&count);
+  createInfo.enabledExtensionCount = count;
 
   VkResult result = vkCreateInstance(&createInfo, NULL, &instance);
   if (result != VK_SUCCESS) {
     printf("Failed to create vulkan instance\n");
     exit(1);
   }
-}
 
-VkCommandBuffer commandBuffer;
+  result = glfwCreateWindowSurface(instance, window, NULL, &surface);
+  if (result != VK_SUCCESS) {
+    printf("Failed to create vulkan surface\n");
+    exit(1);
+  }
+}
 
 void window_size_callback(GLFWwindow *window, int width, int height) {
 
-  // Get the new size of the window
-  int fb_width, fb_height;
-  glfwGetFramebufferSize(window, &fb_width, &fb_height);
+  // Get the current extent of the surface
+  VkSurfaceCapabilitiesKHR capabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface,
+                                            &capabilities);
 
-  // Update the viewport
-  VkViewport viewport = {0, 0, (float)width, (float)height, 0, 1};
+  VkExtent2D extent = capabilities.currentExtent;
+  extent.width = width;
+  extent.height = height;
 
-  VkCommandBufferBeginInfo beginInfo = {};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+  // Update the extent of the surface
+  vkDestroySurfaceKHR(instance, surface, NULL);
+  vkCreateSwapchainKHR(window, &createInfo, NULL, &surface);
 
-  VkResult result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
-  if (result != VK_SUCCESS) {
-    printf("Failed to begin recording command buffer: %d\n", result);
-    return;
-  }
-
-  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-  result = vkEndCommandBuffer(commandBuffer);
-  if (result != VK_SUCCESS) {
-    printf("Failed to end recording command buffer: %d\n", result);
-    return;
-  }
   printf("Window resized to %dx%d\n", width, height);
 }
 
@@ -102,12 +101,12 @@ void initWindowCallbacks(void) {
 }
 
 void createWindow(void) {
-
   if (!glfwInit()) {
     printf("Failed to initialize GLFW\n");
     exit(1);
   }
 
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   window = glfwCreateWindow(800, 600, "Hello Vulkan", NULL, NULL);
   if (!window) {
     printf("Failed to create GLFW window\n");
@@ -120,7 +119,9 @@ void createWindow(void) {
 }
 
 void destroyWindow(void) {
+  vkDestroySurfaceKHR(instance, surface, NULL);
   vkDestroyInstance(instance, NULL);
+  glfwDestroyWindow(window);
   glfwTerminate();
 }
 
