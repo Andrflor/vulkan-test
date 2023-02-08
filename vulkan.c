@@ -6,6 +6,15 @@
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.h"
 
+/* Here are some other callbacks
+glfwSetDropCallback - triggers when a file or text is dropped onto the window.
+glfwSetCursorEnterCallback - triggers when the mouse enters or leaves the
+window. glfwSetScrollCallback - triggers when the mouse scroll wheel is moved.
+glfwSetCharCallback - triggers when a Unicode character is input.
+glfwSetCharModsCallback - triggers when a Unicode character is input with a
+specific modifier. glfwSetJoystickCallback - triggers when a joystick is
+connected or disconnected */
+
 GLFWwindow *window;
 VkInstance instance;
 
@@ -28,6 +37,43 @@ void initVK(void) {
   }
 }
 
+void window_size_callback(GLFWwindow *window, int width, int height) {
+  printf("Window resized to %dx%d\n", width, height);
+}
+
+void window_focus_callback(GLFWwindow *window, int focused) {
+  if (focused) {
+    printf("Window is in focus\n");
+  } else {
+    printf("Window is not in focus\n");
+  }
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                  int mods) {
+  printf("Key : %s\n", glfwGetKeyName(key, scancode));
+}
+
+void mouse_button_callback(GLFWwindow *window, int button, int action,
+                           int mods) {
+  if (action == GLFW_PRESS) {
+    printf("Mouse button %d was clicked\n", button);
+  }
+}
+
+void cursor_position_callback(GLFWwindow *window, double xpos, double ypos) {
+  printf("Mouse is at position %f, %f\n", xpos, ypos);
+}
+
+void initWindowCallbacks(void) {
+  glfwMakeContextCurrent(window);
+  glfwSetWindowSizeCallback(window, window_size_callback);
+  glfwSetKeyCallback(window, key_callback);
+  glfwSetMouseButtonCallback(window, mouse_button_callback);
+  glfwSetCursorPosCallback(window, cursor_position_callback);
+  glfwSetWindowFocusCallback(window, window_focus_callback);
+}
+
 void createWindow(void) {
 
   if (!glfwInit()) {
@@ -42,7 +88,7 @@ void createWindow(void) {
     exit(1);
   }
 
-  glfwMakeContextCurrent(window);
+  initWindowCallbacks();
   initVK();
 }
 
