@@ -37,7 +37,34 @@ void initVK(void) {
   }
 }
 
+VkCommandBuffer commandBuffer;
+
 void window_size_callback(GLFWwindow *window, int width, int height) {
+
+  // Get the new size of the window
+  int fb_width, fb_height;
+  glfwGetFramebufferSize(window, &fb_width, &fb_height);
+
+  // Update the viewport
+  VkViewport viewport = {0, 0, (float)width, (float)height, 0, 1};
+
+  VkCommandBufferBeginInfo beginInfo = {};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+  VkResult result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  if (result != VK_SUCCESS) {
+    printf("Failed to begin recording command buffer: %d\n", result);
+    return;
+  }
+
+  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+  result = vkEndCommandBuffer(commandBuffer);
+  if (result != VK_SUCCESS) {
+    printf("Failed to end recording command buffer: %d\n", result);
+    return;
+  }
   printf("Window resized to %dx%d\n", width, height);
 }
 
