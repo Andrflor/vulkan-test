@@ -23,7 +23,7 @@ VkPhysicalDevice physicalDevice;
 VkQueue queue;
 VkDevice device;
 VkSurfaceKHR surface;
-VkSwapchainKHR swapchain;
+VkSwapchainKHR swapChain;
 VkImageView imageView;
 VkRenderPass renderPass;
 VkFramebuffer framebuffer;
@@ -70,12 +70,15 @@ void vk_createLogicalDevice(void) {
   queueInfo.queueCount = 1;
   queueInfo.pQueuePriorities = &queuePriority;
 
+  const char extensionList[][VK_MAX_EXTENSION_NAME_SIZE] = {"VK_KHR_swapchain"};
+  const char *extensions[] = {extensionList[0]};
+
   VkDeviceCreateInfo deviceInfo = {};
   deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
   deviceInfo.pQueueCreateInfos = &queueInfo;
   deviceInfo.queueCreateInfoCount = 1;
-
+  deviceInfo.enabledExtensionCount = 1;
+  deviceInfo.ppEnabledExtensionNames = extensions;
   deviceInfo.pEnabledFeatures = &deviceFeatures;
 
   VkResult result = vkCreateDevice(physicalDevice, &deviceInfo, NULL, &device);
@@ -118,7 +121,56 @@ void vk_createSurface(void) {
   }
 }
 
-void vk_createSwapChain(void) {}
+void vk_createSwapChain(void) {
+  VkSurfaceCapabilitiesKHR surfaceCapabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface,
+                                            &surfaceCapabilities);
+
+  uint32_t formatCount;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
+                                       NULL);
+  VkSurfaceFormatKHR *surfaceFormats =
+      (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
+                                       surfaceFormats);
+
+  uint32_t presentModeCount;
+  vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface,
+                                            &presentModeCount, NULL);
+  VkPresentModeKHR *presentModes =
+      (VkPresentModeKHR *)malloc(presentModeCount * sizeof(VkPresentModeKHR));
+  vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface,
+                                            &presentModeCount, presentModes);
+
+  VkExtent2D extent = surfaceCapabilities.currentExtent;
+
+  VkSwapchainCreateInfoKHR swapChainInfo = {};
+  swapChainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  swapChainInfo.surface = surface;
+  swapChainInfo.minImageCount = surfaceCapabilities.minImageCount + 1;
+  swapChainInfo.imageFormat = surfaceFormats->format;
+  swapChainInfo.imageColorSpace = surfaceFormats->colorSpace;
+  swapChainInfo.imageExtent = extent;
+  swapChainInfo.imageArrayLayers = 1;
+  /* TODO: maybe use cocurrent with double qeues ?? */
+  swapChainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  swapChainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  swapChainInfo.preTransform = surfaceCapabilities.currentTransform;
+  swapChainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  swapChainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+  swapChainInfo.clipped = VK_TRUE;
+  swapChainInfo.oldSwapchain = VK_NULL_HANDLE;
+
+  VkResult result =
+      vkCreateSwapchainKHR(device, &swapChainInfo, NULL, &swapChain);
+  if (result != VK_SUCCESS) {
+    printf("Failed to create vk swap chain\n");
+    exit(1);
+  }
+
+  free(surfaceFormats);
+  free(presentModes);
+}
 
 void vk_init(void) {
   vk_createInstance();
@@ -129,9 +181,10 @@ void vk_init(void) {
 }
 
 void vk_cleanup(void) {
+  vkDestroySwapchainKHR(device, swapChain, NULL);
   vkDestroySurfaceKHR(instance, surface, NULL);
-  vkDestroyInstance(instance, NULL);
   vkDestroyDevice(device, NULL);
+  vkDestroyInstance(instance, NULL);
 }
 
 void glfw_callbacks_size(GLFWwindow *window, int width, int height) {
