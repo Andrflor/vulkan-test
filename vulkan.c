@@ -19,8 +19,9 @@ connected or disconnected */
 
 GLFWwindow *window;
 VkInstance instance;
-VkInstanceCreateInfo createInfo = {};
 VkPhysicalDevice physicalDevice;
+VkQueue graphicsQueue;
+VkDevice device;
 VkSurfaceKHR surface;
 float queuePriority = 1.0f;
 
@@ -55,11 +56,27 @@ void vk_createLogicalDevice(void) {
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
                                            VK_NULL_HANDLE);
 
-  VkDeviceQueueCreateInfo queueCreateInfo = {};
-  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queueCreateInfo.queueFamilyIndex = queueFamilyNumber;
-  queueCreateInfo.queueCount = 1;
-  queueCreateInfo.pQueuePriorities = &queuePriority;
+  VkPhysicalDeviceFeatures deviceFeatures = {};
+
+  VkDeviceQueueCreateInfo queueInfo = {};
+  queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueInfo.queueFamilyIndex = queueFamilyNumber;
+  queueInfo.queueCount = 1;
+  queueInfo.pQueuePriorities = &queuePriority;
+
+  VkDeviceCreateInfo deviceInfo = {};
+  deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+  deviceInfo.pQueueCreateInfos = &queueInfo;
+  deviceInfo.queueCreateInfoCount = 1;
+
+  deviceInfo.pEnabledFeatures = &deviceFeatures;
+
+  VkResult result = vkCreateDevice(physicalDevice, &deviceInfo, NULL, &device);
+  if (result != VK_SUCCESS) {
+    printf("Failed to create logical device\n");
+    exit(1);
+  }
 }
 
 void vk_createInstance(void) {
@@ -69,14 +86,16 @@ void vk_createInstance(void) {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.apiVersion = VK_API_VERSION_1_3;
 
-  uint32_t count;
-  createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  createInfo.pApplicationInfo = &appInfo;
-  createInfo.ppEnabledExtensionNames =
-      glfwGetRequiredInstanceExtensions(&count);
-  createInfo.enabledExtensionCount = count;
+  VkInstanceCreateInfo instanceInfo = {};
 
-  VkResult result = vkCreateInstance(&createInfo, NULL, &instance);
+  uint32_t count;
+  instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  instanceInfo.pApplicationInfo = &appInfo;
+  instanceInfo.ppEnabledExtensionNames =
+      glfwGetRequiredInstanceExtensions(&count);
+  instanceInfo.enabledExtensionCount = count;
+
+  VkResult result = vkCreateInstance(&instanceInfo, NULL, &instance);
   if (result != VK_SUCCESS) {
     printf("Failed to create vulkan instance\n");
     exit(1);
@@ -156,6 +175,7 @@ void createWindow(void) {
 void destroyWindow(void) {
   vkDestroySurfaceKHR(instance, surface, NULL);
   vkDestroyInstance(instance, NULL);
+  vkDestroyDevice(device, NULL);
   glfwDestroyWindow(window);
   glfwTerminate();
 }
