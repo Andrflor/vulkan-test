@@ -20,9 +20,15 @@ connected or disconnected */
 GLFWwindow *window;
 VkInstance instance;
 VkPhysicalDevice physicalDevice;
-VkQueue graphicsQueue;
+VkQueue queue;
 VkDevice device;
 VkSurfaceKHR surface;
+VkSwapchainKHR swapchain;
+VkImageView imageView;
+VkRenderPass renderPass;
+VkFramebuffer framebuffer;
+VkPipeline pipeline;
+VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
 
 void vk_pickPhysicalDevice(void) {
@@ -77,6 +83,8 @@ void vk_createLogicalDevice(void) {
     printf("Failed to create logical device\n");
     exit(1);
   }
+
+  vkGetDeviceQueue(device, queueFamilyNumber, 0, &queue);
 }
 
 void vk_createInstance(void) {
@@ -110,18 +118,27 @@ void vk_createSurface(void) {
   }
 }
 
-void initVK(void) {
+void vk_createSwapChain(void) {}
+
+void vk_init(void) {
   vk_createInstance();
   vk_pickPhysicalDevice();
   vk_createLogicalDevice();
   vk_createSurface();
+  vk_createSwapChain();
 }
 
-void window_size_callback(GLFWwindow *window, int width, int height) {
+void vk_cleanup(void) {
+  vkDestroySurfaceKHR(instance, surface, NULL);
+  vkDestroyInstance(instance, NULL);
+  vkDestroyDevice(device, NULL);
+}
+
+void glfw_callbacks_size(GLFWwindow *window, int width, int height) {
   printf("Window resized to %dx%d\n", width, height);
 }
 
-void window_focus_callback(GLFWwindow *window, int focused) {
+void glfw_callbacks_focus(GLFWwindow *window, int focused) {
   if (focused) {
     printf("Window is in focus\n");
   } else {
@@ -129,32 +146,33 @@ void window_focus_callback(GLFWwindow *window, int focused) {
   }
 }
 
-void key_callback(GLFWwindow *window, int key, int scancode, int action,
-                  int mods) {
+void glfw_callbacks_key(GLFWwindow *window, int key, int scancode, int action,
+                        int mods) {
   printf("Key : %s\n", glfwGetKeyName(key, scancode));
 }
 
-void mouse_button_callback(GLFWwindow *window, int button, int action,
-                           int mods) {
+void glfw_callbacks_mouseButton(GLFWwindow *window, int button, int action,
+                                int mods) {
   if (action == GLFW_PRESS) {
     printf("Mouse button %d was clicked\n", button);
   }
 }
 
-void cursor_position_callback(GLFWwindow *window, double xpos, double ypos) {
+void glfw_callbacks_cursorPosition(GLFWwindow *window, double xpos,
+                                   double ypos) {
   printf("Mouse is at position %f, %f\n", xpos, ypos);
 }
 
-void initWindowCallbacks(void) {
+void glfw_callbacks_init(void) {
   glfwMakeContextCurrent(window);
-  glfwSetWindowSizeCallback(window, window_size_callback);
-  glfwSetKeyCallback(window, key_callback);
-  glfwSetMouseButtonCallback(window, mouse_button_callback);
-  glfwSetCursorPosCallback(window, cursor_position_callback);
-  glfwSetWindowFocusCallback(window, window_focus_callback);
+  glfwSetWindowSizeCallback(window, glfw_callbacks_size);
+  glfwSetKeyCallback(window, glfw_callbacks_key);
+  glfwSetMouseButtonCallback(window, glfw_callbacks_mouseButton);
+  glfwSetCursorPosCallback(window, glfw_callbacks_cursorPosition);
+  glfwSetWindowFocusCallback(window, glfw_callbacks_focus);
 }
 
-void createWindow(void) {
+void glfw_createWindow(void) {
   if (!glfwInit()) {
     printf("Failed to initialize GLFW\n");
     exit(1);
@@ -168,29 +186,28 @@ void createWindow(void) {
     exit(1);
   }
 
-  initWindowCallbacks();
-  initVK();
+  glfw_callbacks_init();
+  vk_init();
 }
 
-void destroyWindow(void) {
-  vkDestroySurfaceKHR(instance, surface, NULL);
-  vkDestroyInstance(instance, NULL);
-  vkDestroyDevice(device, NULL);
+void glfw_destroyWindow(void) {
+  vk_cleanup();
   glfwDestroyWindow(window);
   glfwTerminate();
 }
 
 void runApp(void loop(void)) {
-  createWindow();
+  glfw_createWindow();
   while (!glfwWindowShouldClose(window)) {
     loop();
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
-  destroyWindow();
+  glfw_destroyWindow();
 }
 
-void mainLoop(void) {}
+void mainLoop(void) { /* Here should be running the main app logic */
+}
 
 int main(int argc, char **argv) {
   runApp(mainLoop);
