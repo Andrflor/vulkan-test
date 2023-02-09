@@ -20,10 +20,49 @@ connected or disconnected */
 GLFWwindow *window;
 VkInstance instance;
 VkInstanceCreateInfo createInfo = {};
-VkPhysicalDevice physical_device;
+VkPhysicalDevice physicalDevice;
 VkSurfaceKHR surface;
+float queuePriority = 1.0f;
 
-void initVK(void) {
+void vk_pickPhysicalDevice(void) {
+  uint32_t deviceCount = 0;
+  vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
+
+  if (deviceCount == 0) {
+    printf("Failed to retreive any compatible device\n");
+    exit(1);
+  }
+  VkPhysicalDevice physicalDevices[deviceCount];
+  vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices);
+
+  /* TODO: make a scoring for each GPU and pick the best
+  This should be done by checking memory/integrated/queues
+
+  int i;
+  for (i = 0; i < deviceCount; i++) {
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(physicalDevices[i], &deviceProperties);
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceFeatures(physicalDevices[i], &deviceFeatures);
+  }
+  */
+
+  physicalDevice = physicalDevices[0];
+}
+
+void vk_createLogicalDevice(void) {
+  uint32_t queueFamilyNumber = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
+                                           VK_NULL_HANDLE);
+
+  VkDeviceQueueCreateInfo queueCreateInfo = {};
+  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueCreateInfo.queueFamilyIndex = queueFamilyNumber;
+  queueCreateInfo.queueCount = 1;
+  queueCreateInfo.pQueuePriorities = &queuePriority;
+}
+
+void vk_createInstance(void) {
   VkApplicationInfo appInfo = {};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = "Hello Vulkan";
@@ -42,37 +81,24 @@ void initVK(void) {
     printf("Failed to create vulkan instance\n");
     exit(1);
   }
+}
 
-  uint32_t deviceCount = 0;
-  vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
-
-  if (deviceCount == 0) {
-    printf("Failed to retreive any compatible device\n");
-    exit(1);
-  }
-
-  VkPhysicalDevice physicalDevices[deviceCount];
-  vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices);
-
-  physical_device = physicalDevices[0];
-
-  result = glfwCreateWindowSurface(instance, window, NULL, &surface);
+void vk_createSurface(void) {
+  VkResult result = glfwCreateWindowSurface(instance, window, NULL, &surface);
   if (result != VK_SUCCESS) {
     printf("Failed to create vulkan surface\n");
     exit(1);
   }
 }
 
+void initVK(void) {
+  vk_createInstance();
+  vk_pickPhysicalDevice();
+  vk_createLogicalDevice();
+  vk_createSurface();
+}
+
 void window_size_callback(GLFWwindow *window, int width, int height) {
-
-  VkSurfaceCapabilitiesKHR capabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface,
-                                            &capabilities);
-  VkExtent2D currentExtent = capabilities.currentExtent;
-
-  currentExtent.width = width;
-  currentExtent.height = height;
-
   printf("Window resized to %dx%d\n", width, height);
 }
 
@@ -137,8 +163,8 @@ void destroyWindow(void) {
 void runApp(void loop(void)) {
   createWindow();
   while (!glfwWindowShouldClose(window)) {
-    glfwSwapBuffers(window);
     loop();
+    glfwSwapBuffers(window);
     glfwPollEvents();
   }
   destroyWindow();
