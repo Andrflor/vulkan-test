@@ -20,6 +20,7 @@ connected or disconnected */
 GLFWwindow *window;
 VkInstance instance;
 VkInstanceCreateInfo createInfo = {};
+VkPhysicalDevice physical_device;
 VkSurfaceKHR surface;
 
 void initVK(void) {
@@ -42,6 +43,19 @@ void initVK(void) {
     exit(1);
   }
 
+  uint32_t deviceCount = 0;
+  vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
+
+  if (deviceCount == 0) {
+    printf("Failed to retreive any compatible device\n");
+    exit(1);
+  }
+
+  VkPhysicalDevice physicalDevices[deviceCount];
+  vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices);
+
+  physical_device = physicalDevices[0];
+
   result = glfwCreateWindowSurface(instance, window, NULL, &surface);
   if (result != VK_SUCCESS) {
     printf("Failed to create vulkan surface\n");
@@ -51,18 +65,13 @@ void initVK(void) {
 
 void window_size_callback(GLFWwindow *window, int width, int height) {
 
-  // Get the current extent of the surface
   VkSurfaceCapabilitiesKHR capabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface,
                                             &capabilities);
+  VkExtent2D currentExtent = capabilities.currentExtent;
 
-  VkExtent2D extent = capabilities.currentExtent;
-  extent.width = width;
-  extent.height = height;
-
-  // Update the extent of the surface
-  vkDestroySurfaceKHR(instance, surface, NULL);
-  vkCreateSwapchainKHR(window, &createInfo, NULL, &surface);
+  currentExtent.width = width;
+  currentExtent.height = height;
 
   printf("Window resized to %dx%d\n", width, height);
 }
