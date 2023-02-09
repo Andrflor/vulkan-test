@@ -187,22 +187,22 @@ void glfw_createWindow(void) {
   }
 
   glfw_callbacks_init();
-  vk_init();
 }
 
 void glfw_destroyWindow(void) {
-  vk_cleanup();
   glfwDestroyWindow(window);
   glfwTerminate();
 }
 
 void runApp(void loop(void)) {
   glfw_createWindow();
+  vk_init();
   while (!glfwWindowShouldClose(window)) {
     loop();
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
+  vk_cleanup();
   glfw_destroyWindow();
 }
 
