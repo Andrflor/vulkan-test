@@ -28,7 +28,7 @@ VkSwapchainKHR swapChain;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
 VkImage *swapChainImages;
-VkImageView *imageViews;
+VkImageView *swapChainImageViews;
 VkRenderPass renderPass;
 VkFramebuffer framebuffer;
 VkPipeline pipeline;
@@ -192,7 +192,35 @@ void vk_createSwapChain(void) {
   free(presentModes);
 }
 
-void vk_createImageViews(void) {}
+void vk_createImageViews(void) {
+  swapChainImageViews =
+      (VkImageView *)malloc(swapChainImageCount * sizeof(VkImageView));
+
+  size_t i;
+  for (i = 0; i < swapChainImageCount; i++) {
+    VkImageViewCreateInfo imageViewInfo = {};
+    imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewInfo.image = swapChainImages[i];
+    imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewInfo.format = swapChainImageFormat;
+    imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewInfo.subresourceRange.baseMipLevel = 0;
+    imageViewInfo.subresourceRange.levelCount = 1;
+    imageViewInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewInfo.subresourceRange.layerCount = 1;
+
+    VkResult result = vkCreateImageView(device, &imageViewInfo, NULL,
+                                        &swapChainImageViews[i]);
+    if (result != VK_SUCCESS) {
+      printf("Failed to create vk image view at index: %zu\n", i);
+      exit(1);
+    }
+  }
+}
 
 void vk_init(void) {
   vk_createInstance();
@@ -204,6 +232,10 @@ void vk_init(void) {
 }
 
 void vk_cleanup(void) {
+  size_t i;
+  for (i = 0; i < swapChainImageCount; i++) {
+    vkDestroyImageView(device, swapChainImageViews[i], NULL);
+  }
   vkDestroySwapchainKHR(device, swapChain, NULL);
   vkDestroySurfaceKHR(instance, surface, NULL);
   vkDestroyDevice(device, NULL);
