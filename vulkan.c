@@ -222,6 +222,11 @@ void vk_createImageViews(void) {
   }
 }
 
+void vk_createGraphicsPipeline(void) {
+  /* TODO: implement
+  some graphic pipeline */
+}
+
 void vk_init(void) {
   vk_createInstance();
   vk_pickPhysicalDevice();
@@ -229,6 +234,7 @@ void vk_init(void) {
   vk_createSurface();
   vk_createSwapChain();
   vk_createImageViews();
+  vk_createGraphicsPipeline();
 }
 
 void vk_cleanup(void) {
