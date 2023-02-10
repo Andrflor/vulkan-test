@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vulkan/vulkan_core.h>
@@ -24,12 +25,16 @@ VkQueue queue;
 VkDevice device;
 VkSurfaceKHR surface;
 VkSwapchainKHR swapChain;
-VkImageView imageView;
+VkFormat swapChainImageFormat;
+VkExtent2D swapChainExtent;
+VkImage *swapChainImages;
+VkImageView *imageViews;
 VkRenderPass renderPass;
 VkFramebuffer framebuffer;
 VkPipeline pipeline;
 VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
+uint32_t swapChainImageCount;
 
 void vk_pickPhysicalDevice(void) {
   uint32_t deviceCount = 0;
@@ -144,10 +149,16 @@ void vk_createSwapChain(void) {
 
   VkExtent2D extent = surfaceCapabilities.currentExtent;
 
+  int imageCount = surfaceCapabilities.minImageCount;
+  if (surfaceCapabilities.maxImageCount == 0 ||
+      imageCount + 1 <= surfaceCapabilities.maxImageCount) {
+    imageCount++;
+  }
+
   VkSwapchainCreateInfoKHR swapChainInfo = {};
   swapChainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapChainInfo.surface = surface;
-  swapChainInfo.minImageCount = surfaceCapabilities.minImageCount + 1;
+  swapChainInfo.minImageCount = imageCount;
   swapChainInfo.imageFormat = surfaceFormats->format;
   swapChainInfo.imageColorSpace = surfaceFormats->colorSpace;
   swapChainInfo.imageExtent = extent;
@@ -168,9 +179,20 @@ void vk_createSwapChain(void) {
     exit(1);
   }
 
+  vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, NULL);
+  swapChainImages = (VkImage *)malloc(swapChainImageCount * sizeof(VkImage));
+
+  vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount,
+                          swapChainImages);
+
+  swapChainImageFormat = surfaceFormats->format;
+  swapChainExtent = extent;
+
   free(surfaceFormats);
   free(presentModes);
 }
+
+void vk_createImageViews(void) {}
 
 void vk_init(void) {
   vk_createInstance();
@@ -178,6 +200,7 @@ void vk_init(void) {
   vk_createLogicalDevice();
   vk_createSurface();
   vk_createSwapChain();
+  vk_createImageViews();
 }
 
 void vk_cleanup(void) {
