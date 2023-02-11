@@ -33,6 +33,7 @@ VkShaderModule fragShaderModule;
 VkImageView *swapChainImageViews;
 VkRenderPass renderPass;
 VkFramebuffer framebuffer;
+VkPipelineLayout pipelineLayout;
 VkPipeline pipeline;
 VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
@@ -367,6 +368,41 @@ void vk_createGraphicsPipeline(void) {
   colorBlendingState.blendConstants[1] = 0.0f;
   colorBlendingState.blendConstants[2] = 0.0f;
   colorBlendingState.blendConstants[3] = 0.0f;
+
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pSetLayouts = NULL;
+  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pPushConstantRanges = NULL;
+
+  VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
+                                           &pipelineLayout);
+  if (result != VK_SUCCESS) {
+    printf("Failed to create vk pipeline layout");
+    exit(1);
+  }
+}
+
+void vk_createRenderPass(void) {
+  VkAttachmentDescription colorAttachment = {};
+  colorAttachment.format = swapChainImageFormat;
+  colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+  VkAttachmentReference colorAttachmentRef = {};
+  colorAttachmentRef.attachment = 0;
+  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkSubpassDescription subpass = {};
+  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorAttachmentRef;
 }
 
 void vk_init(void) {
@@ -376,10 +412,12 @@ void vk_init(void) {
   vk_createSurface();
   vk_createSwapChain();
   vk_createImageViews();
+  vk_createRenderPass();
   vk_createGraphicsPipeline();
 }
 
 void vk_cleanup(void) {
+  vkDestroyPipelineLayout(device, pipelineLayout, NULL);
   vkDestroyShaderModule(device, fragShaderModule, NULL);
   vkDestroyShaderModule(device, vertShaderModule, NULL);
   size_t i;
