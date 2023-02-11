@@ -258,12 +258,65 @@ VkShaderModule vk_createShaderModule(char *filename) {
     printf("Error while creating vk shader module for %s", filename);
     exit(1);
   }
+
+  free(shader);
   return shaderModule;
 }
 
 void vk_createGraphicsPipeline(void) {
   vertShaderModule = vk_createShaderModule("shaders/triangle-vert.spv");
   fragShaderModule = vk_createShaderModule("shaders/triangle-frag.spv");
+
+  VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+  vertShaderStageInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+  vertShaderStageInfo.module = vertShaderModule;
+  vertShaderStageInfo.pName = "main";
+
+  VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+  fragShaderStageInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+  fragShaderStageInfo.module = fragShaderModule;
+  fragShaderStageInfo.pName = "main";
+
+  VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo,
+                                                    fragShaderStageInfo};
+
+  const VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT,
+                                          VK_DYNAMIC_STATE_SCISSOR};
+
+  VkPipelineDynamicStateCreateInfo dynamicStateInfo = {};
+  dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamicStateInfo.dynamicStateCount = 2;
+  dynamicStateInfo.pDynamicStates = dynamicStates;
+
+  VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+  vertexInputInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+  vertexInputInfo.vertexBindingDescriptionCount = 0;
+  vertexInputInfo.pVertexBindingDescriptions = NULL;
+  vertexInputInfo.vertexAttributeDescriptionCount = 0;
+  vertexInputInfo.pVertexAttributeDescriptions = NULL;
+
+  VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
+  inputAssemblyInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+  inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+  VkViewport viewport = {};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = (float)swapChainExtent.width;
+  viewport.height = (float)swapChainExtent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  VkRect2D scissor = {};
+  scissor.offset = (VkOffset2D){0, 0};
+  scissor.extent = swapChainExtent;
 }
 
 void vk_init(void) {
