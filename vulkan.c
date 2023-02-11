@@ -32,9 +32,10 @@ VkShaderModule vertShaderModule;
 VkShaderModule fragShaderModule;
 VkImageView *swapChainImageViews;
 VkRenderPass renderPass;
-VkFramebuffer framebuffer;
+VkFramebuffer *framebuffers;
 VkPipelineLayout pipelineLayout;
 VkPipeline pipeline;
+VkCommandPool commandPool;
 VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
 uint32_t swapChainImageCount;
@@ -365,7 +366,7 @@ void vk_createGraphicsPipeline(void) {
   colorBlendingState.sType =
       VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
   colorBlendingState.logicOpEnable = VK_FALSE;
-  colorBlendingState.logicOp = VK_LOGIC_OP_COPY; // Optional
+  colorBlendingState.logicOp = VK_LOGIC_OP_COPY;
   colorBlendingState.attachmentCount = 1;
   colorBlendingState.pAttachments = &colorBlendAttachment;
   colorBlendingState.blendConstants[0] = 0.0f;
@@ -396,7 +397,7 @@ void vk_createGraphicsPipeline(void) {
   pipelineInfo.pViewportState = &viewportStateInfo;
   pipelineInfo.pRasterizationState = &rasterizerInfo;
   pipelineInfo.pMultisampleState = &multisamplingInfo;
-  pipelineInfo.pDepthStencilState = NULL; // Optional
+  pipelineInfo.pDepthStencilState = NULL;
   pipelineInfo.pColorBlendState = &colorBlendingState;
   pipelineInfo.pDynamicState = &dynamicStateInfo;
 
@@ -442,6 +443,37 @@ void vk_createRenderPass(void) {
   }
 }
 
+void vk_createFramebuffers(void) {
+  framebuffers =
+      (VkFramebuffer *)malloc(swapChainImageCount * sizeof(VkFramebuffer));
+  size_t i;
+  for (i = 0; i < swapChainImageCount; i++) {
+    VkImageView attachments[] = {swapChainImageViews[i]};
+
+    VkFramebufferCreateInfo framebufferInfo = {};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = renderPass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = attachments;
+    framebufferInfo.width = swapChainExtent.width;
+    framebufferInfo.height = swapChainExtent.height;
+    framebufferInfo.layers = 1;
+
+    VkResult result =
+        vkCreateFramebuffer(device, &framebufferInfo, NULL, &framebuffers[i]);
+    if (result != VK_SUCCESS) {
+      printf("Failed to create vk framebuffer at index %zu\n", i);
+      exit(1);
+    }
+  }
+}
+
+void vk_createCommandPool(void) {}
+
+void vk_createCommandBuffer(void) {}
+
+void vk_createSyncObjects(void) {}
+
 void vk_init(void) {
   vk_createInstance();
   vk_pickPhysicalDevice();
@@ -451,15 +483,22 @@ void vk_init(void) {
   vk_createImageViews();
   vk_createRenderPass();
   vk_createGraphicsPipeline();
+  vk_createFramebuffers();
+  vk_createCommandPool();
+  vk_createCommandBuffer();
+  vk_createSyncObjects();
 }
 
 void vk_cleanup(void) {
+  size_t i;
+  for (i = 0; i < swapChainImageCount; i++) {
+    vkDestroyFramebuffer(device, framebuffers[i], NULL);
+  }
   vkDestroyPipeline(device, pipeline, NULL);
   vkDestroyPipelineLayout(device, pipelineLayout, NULL);
   vkDestroyRenderPass(device, renderPass, NULL);
   vkDestroyShaderModule(device, fragShaderModule, NULL);
   vkDestroyShaderModule(device, vertShaderModule, NULL);
-  size_t i;
   for (i = 0; i < swapChainImageCount; i++) {
     vkDestroyImageView(device, swapChainImageViews[i], NULL);
   }
