@@ -28,6 +28,8 @@ VkSwapchainKHR swapChain;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
 VkImage *swapChainImages;
+VkShaderModule vertShaderModule;
+VkShaderModule fragShaderModule;
 VkImageView *swapChainImageViews;
 VkRenderPass renderPass;
 VkFramebuffer framebuffer;
@@ -240,17 +242,28 @@ char *vk_loadFile(char *filename, uint32_t *size) {
   return content;
 }
 
-VkShaderModule vk_createShaderModule() {
-  /* TODO: implement
-   */
+VkShaderModule vk_createShaderModule(char *filename) {
+  uint32_t shaderSize;
+  char *shader = vk_loadFile(filename, &shaderSize);
+
+  VkShaderModuleCreateInfo shaderModuleInfo = {};
+  shaderModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  shaderModuleInfo.codeSize = shaderSize;
+  shaderModuleInfo.pCode = (const uint32_t *)shader;
+
+  VkShaderModule shaderModule;
+  VkResult result =
+      vkCreateShaderModule(device, &shaderModuleInfo, NULL, &shaderModule);
+  if (result != VK_SUCCESS) {
+    printf("Error while creating vk shader module for %s", filename);
+    exit(1);
+  }
+  return shaderModule;
 }
 
 void vk_createGraphicsPipeline(void) {
-  uint32_t vertexSize;
-  char *vertexShader = vk_loadFile("shaders/triangle-vert.spv", &vertexSize);
-
-  uint32_t fragSize;
-  char *fragShader = vk_loadFile("shaders/triangle-frag.spv", &fragSize);
+  vertShaderModule = vk_createShaderModule("shaders/triangle-vert.spv");
+  fragShaderModule = vk_createShaderModule("shaders/triangle-frag.spv");
 }
 
 void vk_init(void) {
@@ -264,6 +277,8 @@ void vk_init(void) {
 }
 
 void vk_cleanup(void) {
+  vkDestroyShaderModule(device, fragShaderModule, NULL);
+  vkDestroyShaderModule(device, vertShaderModule, NULL);
   size_t i;
   for (i = 0; i < swapChainImageCount; i++) {
     vkDestroyImageView(device, swapChainImageViews[i], NULL);
