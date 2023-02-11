@@ -222,9 +222,35 @@ void vk_createImageViews(void) {
   }
 }
 
-void vk_createGraphicsPipeline(void) {
+char *vk_loadFile(char *filename, uint32_t *size) {
+  FILE *fp;
+  fp = fopen(filename, "rb+");
+  if (fp == NULL) {
+    printf("Failed to open %s\n", filename);
+    exit(1);
+  }
+  fseek(fp, 0l, SEEK_END);
+  *size = (uint32_t)ftell(fp);
+  rewind(fp);
+
+  char *content = (char *)malloc((*size) * sizeof(char));
+  fread(content, 1, *size, fp);
+
+  fclose(fp);
+  return content;
+}
+
+VkShaderModule vk_createShaderModule() {
   /* TODO: implement
-  some graphic pipeline */
+   */
+}
+
+void vk_createGraphicsPipeline(void) {
+  uint32_t vertexSize;
+  char *vertexShader = vk_loadFile("shaders/triangle-vert.spv", &vertexSize);
+
+  uint32_t fragSize;
+  char *fragShader = vk_loadFile("shaders/triangle-frag.spv", &fragSize);
 }
 
 void vk_init(void) {
