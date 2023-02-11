@@ -314,6 +314,59 @@ void vk_createGraphicsPipeline(void) {
   VkRect2D scissor = {};
   scissor.offset = (VkOffset2D){0, 0};
   scissor.extent = swapChainExtent;
+
+  VkPipelineViewportStateCreateInfo viewportStateInfo = {};
+  viewportStateInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+  viewportStateInfo.viewportCount = 1;
+  viewportStateInfo.scissorCount = 1;
+
+  VkPipelineRasterizationStateCreateInfo rasterizer = {};
+  rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+  rasterizer.depthClampEnable = VK_FALSE;
+  rasterizer.rasterizerDiscardEnable = VK_FALSE;
+  rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+  rasterizer.lineWidth = 1.0f;
+  rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+  rasterizer.depthBiasEnable = VK_FALSE;
+  rasterizer.depthBiasConstantFactor = 0.0f;
+  rasterizer.depthBiasClamp = 0.0f;
+  rasterizer.depthBiasSlopeFactor = 0.0f;
+
+  VkPipelineMultisampleStateCreateInfo multisamplingInfo = {};
+  multisamplingInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+  multisamplingInfo.sampleShadingEnable = VK_FALSE;
+  multisamplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+  multisamplingInfo.minSampleShading = 1.0f;
+  multisamplingInfo.pSampleMask = NULL;
+  multisamplingInfo.alphaToCoverageEnable = VK_FALSE;
+  multisamplingInfo.alphaToOneEnable = VK_FALSE;
+
+  VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+  colorBlendAttachment.colorWriteMask =
+      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+  colorBlendAttachment.blendEnable = VK_FALSE;
+  colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+  colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+  colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+  colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+  colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+  colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+  VkPipelineColorBlendStateCreateInfo colorBlendingState = {};
+  colorBlendingState.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+  colorBlendingState.logicOpEnable = VK_FALSE;
+  colorBlendingState.logicOp = VK_LOGIC_OP_COPY; // Optional
+  colorBlendingState.attachmentCount = 1;
+  colorBlendingState.pAttachments = &colorBlendAttachment;
+  colorBlendingState.blendConstants[0] = 0.0f;
+  colorBlendingState.blendConstants[1] = 0.0f;
+  colorBlendingState.blendConstants[2] = 0.0f;
+  colorBlendingState.blendConstants[3] = 0.0f;
 }
 
 void vk_init(void) {
