@@ -282,6 +282,9 @@ void vk_createGraphicsPipeline(void) {
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
+  VkPipelineShaderStageCreateInfo stageInfos[2] = {vertShaderStageInfo,
+                                                   fragShaderStageInfo};
+
   const VkDynamicState dynamicStates[2] = {VK_DYNAMIC_STATE_VIEWPORT,
                                            VK_DYNAMIC_STATE_SCISSOR};
 
@@ -322,18 +325,19 @@ void vk_createGraphicsPipeline(void) {
   viewportStateInfo.viewportCount = 1;
   viewportStateInfo.scissorCount = 1;
 
-  VkPipelineRasterizationStateCreateInfo rasterizer = {};
-  rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-  rasterizer.depthClampEnable = VK_FALSE;
-  rasterizer.rasterizerDiscardEnable = VK_FALSE;
-  rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-  rasterizer.lineWidth = 1.0f;
-  rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-  rasterizer.depthBiasEnable = VK_FALSE;
-  rasterizer.depthBiasConstantFactor = 0.0f;
-  rasterizer.depthBiasClamp = 0.0f;
-  rasterizer.depthBiasSlopeFactor = 0.0f;
+  VkPipelineRasterizationStateCreateInfo rasterizerInfo = {};
+  rasterizerInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+  rasterizerInfo.depthClampEnable = VK_FALSE;
+  rasterizerInfo.rasterizerDiscardEnable = VK_FALSE;
+  rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
+  rasterizerInfo.lineWidth = 1.0f;
+  rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizerInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+  rasterizerInfo.depthBiasEnable = VK_FALSE;
+  rasterizerInfo.depthBiasConstantFactor = 0.0f;
+  rasterizerInfo.depthBiasClamp = 0.0f;
+  rasterizerInfo.depthBiasSlopeFactor = 0.0f;
 
   VkPipelineMultisampleStateCreateInfo multisamplingInfo = {};
   multisamplingInfo.sType =
@@ -380,6 +384,26 @@ void vk_createGraphicsPipeline(void) {
                                            &pipelineLayout);
   if (result != VK_SUCCESS) {
     printf("Failed to create vk pipeline layout\n");
+    exit(1);
+  }
+
+  VkGraphicsPipelineCreateInfo pipelineInfo = {};
+  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.stageCount = 2;
+  pipelineInfo.pStages = stageInfos;
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+  pipelineInfo.pViewportState = &viewportStateInfo;
+  pipelineInfo.pRasterizationState = &rasterizerInfo;
+  pipelineInfo.pMultisampleState = &multisamplingInfo;
+  pipelineInfo.pDepthStencilState = NULL; // Optional
+  pipelineInfo.pColorBlendState = &colorBlendingState;
+  pipelineInfo.pDynamicState = &dynamicStateInfo;
+
+  result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                                     NULL, &pipeline);
+  if (result != VK_SUCCESS) {
+    printf("Failed to create vk graphics pipeline\n");
     exit(1);
   }
 }
@@ -430,6 +454,7 @@ void vk_init(void) {
 }
 
 void vk_cleanup(void) {
+  vkDestroyPipeline(device, pipeline, NULL);
   vkDestroyPipelineLayout(device, pipelineLayout, NULL);
   vkDestroyRenderPass(device, renderPass, NULL);
   vkDestroyShaderModule(device, fragShaderModule, NULL);
