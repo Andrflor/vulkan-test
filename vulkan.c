@@ -256,7 +256,7 @@ VkShaderModule vk_createShaderModule(char *filename) {
   VkResult result =
       vkCreateShaderModule(device, &shaderModuleInfo, NULL, &shaderModule);
   if (result != VK_SUCCESS) {
-    printf("Error while creating vk shader module for %s", filename);
+    printf("Error while creating vk shader module for %s\n", filename);
     exit(1);
   }
 
@@ -379,7 +379,7 @@ void vk_createGraphicsPipeline(void) {
   VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
                                            &pipelineLayout);
   if (result != VK_SUCCESS) {
-    printf("Failed to create vk pipeline layout");
+    printf("Failed to create vk pipeline layout\n");
     exit(1);
   }
 }
@@ -403,6 +403,19 @@ void vk_createRenderPass(void) {
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   subpass.colorAttachmentCount = 1;
   subpass.pColorAttachments = &colorAttachmentRef;
+
+  VkRenderPassCreateInfo renderPassInfo = {};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount = 1;
+  renderPassInfo.pAttachments = &colorAttachment;
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpass;
+
+  VkResult result =
+      vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass);
+  if (result != VK_SUCCESS) {
+    printf("Failed to create vk render pass\n");
+  }
 }
 
 void vk_init(void) {
@@ -418,6 +431,7 @@ void vk_init(void) {
 
 void vk_cleanup(void) {
   vkDestroyPipelineLayout(device, pipelineLayout, NULL);
+  vkDestroyRenderPass(device, renderPass, NULL);
   vkDestroyShaderModule(device, fragShaderModule, NULL);
   vkDestroyShaderModule(device, vertShaderModule, NULL);
   size_t i;
