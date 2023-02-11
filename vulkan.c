@@ -40,6 +40,10 @@ VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
 uint32_t swapChainImageCount;
 
+VkSemaphore imageAvailableSemaphore;
+VkSemaphore renderFinishedSemaphore;
+VkFence inFlightFence;
+
 void vk_pickPhysicalDevice(void) {
   uint32_t deviceCount = 0;
   vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
@@ -440,6 +444,7 @@ void vk_createRenderPass(void) {
       vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass);
   if (result != VK_SUCCESS) {
     printf("Failed to create vk render pass\n");
+    exit(1);
   }
 }
 
@@ -554,7 +559,80 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
   }
 }
 
-void vk_createSyncObjects(void) {}
+void vk_createSyncObjects(void) {
+  VkSemaphoreCreateInfo semaphoreInfo = {};
+  semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+  VkFenceCreateInfo fenceInfo = {};
+  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+  if (vkCreateSemaphore(device, &semaphoreInfo, NULL,
+                        &imageAvailableSemaphore) != VK_SUCCESS ||
+      vkCreateSemaphore(device, &semaphoreInfo, NULL,
+                        &renderFinishedSemaphore) != VK_SUCCESS ||
+      vkCreateFence(device, &fenceInfo, NULL, &inFlightFence) != VK_SUCCESS) {
+    printf("Failed to create vk semaphores\n");
+    exit(1);
+  }
+}
+
+void vk_renderFrame(void) {
+  vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+  vkResetFences(device, 1, &inFlightFence);
+  uint32_t imageIndex;
+  vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore,
+                        VK_NULL_HANDLE, &imageIndex);
+
+  vkResetCommandBuffer(commandBuffer, 0);
+  vk_recordCommandBuffer(commandBuffer, imageIndex);
+
+  VkSubmitInfo submitInfo = {};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
+  VkPipelineStageFlags waitStages[] = {
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores = waitSemaphores;
+  submitInfo.pWaitDstStageMask = waitStages;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
+
+  VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+
+  VkResult result = vkQueueSubmit(queue, 1, &submitInfo, inFlightFence);
+  if (result != VK_SUCCESS) {
+    printf("Failed to submit draw vk command buffer\n");
+    exit(1);
+  }
+
+  VkSubpassDependency dependency = {};
+  dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependency.dstSubpass = 0;
+  dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependency.srcAccessMask = 0;
+  dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  // renderPassInfo.dependencyCount = 1;
+  // renderPassInfo.pDependencies = &dependency;
+
+  VkPresentInfoKHR presentInfo = {};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = signalSemaphores;
+
+  VkSwapchainKHR swapChains[] = {swapChain};
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = swapChains;
+  presentInfo.pImageIndices = &imageIndex;
+  presentInfo.pResults = NULL; // Optional
+
+  vkQueuePresentKHR(queue, &presentInfo);
+}
 
 void vk_init(void) {
   vk_createInstance();
@@ -572,6 +650,9 @@ void vk_init(void) {
 }
 
 void vk_cleanup(void) {
+  vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
+  vkDestroySemaphore(device, renderFinishedSemaphore, NULL);
+  vkDestroyFence(device, inFlightFence, NULL);
   vkDestroyCommandPool(device, commandPool, NULL);
   size_t i;
   for (i = 0; i < swapChainImageCount; i++) {
@@ -663,7 +744,9 @@ void runApp(void loop(void)) {
   glfw_destroyWindow();
 }
 
-void mainLoop(void) { /* Here should be running the main app logic */
+void mainLoop(void) {
+  /* Main render loop */
+  vk_renderFrame();
 }
 
 int main(int argc, char **argv) {
