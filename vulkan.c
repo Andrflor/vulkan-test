@@ -427,6 +427,8 @@ void vk_createGraphicsPipeline(void) {
   pipelineInfo.pDepthStencilState = NULL;
   pipelineInfo.pColorBlendState = &colorBlendingState;
   pipelineInfo.pDynamicState = &dynamicStateInfo;
+  pipelineInfo.layout = pipelineLayout;
+  pipelineInfo.renderPass = renderPass;
 
   result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
                                      NULL, &pipeline);
@@ -665,8 +667,8 @@ void vk_init(void) {
   vk_createSwapChain();
   vk_createImageViews();
   vk_createRenderPass();
-  vk_createGraphicsPipeline();
   vk_createFramebuffers();
+  vk_createGraphicsPipeline();
   vk_createCommandPool();
   vk_createCommandBuffer();
   vk_createSyncObjects();
