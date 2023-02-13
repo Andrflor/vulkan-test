@@ -650,6 +650,7 @@ void vk_init(void) {
 }
 
 void vk_cleanup(void) {
+  vkDeviceWaitIdle(device);
   vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
   vkDestroySemaphore(device, renderFinishedSemaphore, NULL);
   vkDestroyFence(device, inFlightFence, NULL);
