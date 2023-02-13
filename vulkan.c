@@ -75,20 +75,43 @@ void vk_createLogicalDevice(void) {
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
                                            VK_NULL_HANDLE);
 
-  VkPhysicalDeviceFeatures deviceFeatures = {};
+  VkQueueFamilyProperties *queueFamilyProperties =
+      (VkQueueFamilyProperties *)malloc(queueFamilyNumber *
+                                        sizeof(VkQueueFamilyProperties));
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
+                                           queueFamilyProperties);
 
-  VkDeviceQueueCreateInfo queueInfo = {};
-  queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queueInfo.queueFamilyIndex = queueFamilyNumber;
-  queueInfo.queueCount = 1;
-  queueInfo.pQueuePriorities = &queuePriority;
+  VkPhysicalDeviceFeatures deviceFeatures;
+  vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+  VkDeviceQueueCreateInfo *queueInfo = (VkDeviceQueueCreateInfo *)malloc(
+      queueFamilyNumber * sizeof(VkDeviceQueueCreateInfo));
+  float **queuePriorities =
+      (float **)malloc(queueFamilyNumber * sizeof(float *));
+
+  size_t i;
+  size_t j;
+  for (i = 0; i < queueFamilyNumber; i++) {
+    queuePriorities[i] =
+        (float *)malloc(queueFamilyProperties[i].queueCount * sizeof(float));
+    for (j = 0; j < queueFamilyProperties[i].queueCount; j++) {
+      queuePriorities[i][j] = 1.0f;
+    }
+
+    queueInfo[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueInfo[i].pNext = VK_NULL_HANDLE;
+    queueInfo[i].flags = 0;
+    queueInfo[i].queueFamilyIndex = i;
+    queueInfo[i].queueCount = queueFamilyProperties[i].queueCount;
+    queueInfo[i].pQueuePriorities = queuePriorities[i];
+  }
 
   const char extensionList[][VK_MAX_EXTENSION_NAME_SIZE] = {"VK_KHR_swapchain"};
   const char *extensions[] = {extensionList[0]};
 
   VkDeviceCreateInfo deviceInfo = {};
   deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  deviceInfo.pQueueCreateInfos = &queueInfo;
+  deviceInfo.pQueueCreateInfos = queueInfo;
   deviceInfo.queueCreateInfoCount = 1;
   deviceInfo.enabledExtensionCount = 1;
   deviceInfo.ppEnabledExtensionNames = extensions;
