@@ -509,8 +509,8 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
                             uint32_t imageIndex) {
   VkCommandBufferBeginInfo beginInfo = {};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = 0;               // Optional
-  beginInfo.pInheritanceInfo = NULL; // Optional
+  beginInfo.flags = 0;
+  beginInfo.pInheritanceInfo = NULL;
 
   VkResult result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
   if (result != VK_SUCCESS) {
@@ -616,8 +616,8 @@ void vk_renderFrame(void) {
   dependency.srcAccessMask = 0;
   dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
   dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-  // renderPassInfo.dependencyCount = 1;
-  // renderPassInfo.pDependencies = &dependency;
+  /* renderPassInfo.dependencyCount = 1;
+  renderPassInfo.pDependencies = &dependency; */
 
   VkPresentInfoKHR presentInfo = {};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -629,7 +629,7 @@ void vk_renderFrame(void) {
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = swapChains;
   presentInfo.pImageIndices = &imageIndex;
-  presentInfo.pResults = NULL; // Optional
+  presentInfo.pResults = NULL;
 
   vkQueuePresentKHR(queue, &presentInfo);
 }
@@ -736,9 +736,8 @@ void runApp(void loop(void)) {
   glfw_createWindow();
   vk_init();
   while (!glfwWindowShouldClose(window)) {
-    loop();
-    glfwSwapBuffers(window);
     glfwPollEvents();
+    loop();
   }
   vk_cleanup();
   glfw_destroyWindow();
