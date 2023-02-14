@@ -69,32 +69,34 @@ void vk_pickPhysicalDevice(void) {
 
   physicalDevice = physicalDevices[0];
 }
-
 void vk_createLogicalDevice(void) {
-  uint32_t queueFamilyNumber = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
-                                           VK_NULL_HANDLE);
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
+                                           NULL);
 
-  VkQueueFamilyProperties *queueFamilyProperties =
-      (VkQueueFamilyProperties *)malloc(queueFamilyNumber *
-                                        sizeof(VkQueueFamilyProperties));
-  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
-                                           queueFamilyProperties);
+  VkQueueFamilyProperties *queueFamilies = (VkQueueFamilyProperties *)malloc(
+      queueFamilyCount * sizeof(VkQueueFamilyProperties));
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
+                                           queueFamilies);
 
   VkPhysicalDeviceFeatures deviceFeatures;
   vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
   VkDeviceQueueCreateInfo *queueInfo = (VkDeviceQueueCreateInfo *)malloc(
-      queueFamilyNumber * sizeof(VkDeviceQueueCreateInfo));
+      queueFamilyCount * sizeof(VkDeviceQueueCreateInfo));
   float **queuePriorities =
-      (float **)malloc(queueFamilyNumber * sizeof(float *));
+      (float **)malloc(queueFamilyCount * sizeof(float *));
 
+  size_t queueNumber;
   size_t i;
   size_t j;
-  for (i = 0; i < queueFamilyNumber; i++) {
+  for (i = 0; i < queueFamilyCount; i++) {
     queuePriorities[i] =
-        (float *)malloc(queueFamilyProperties[i].queueCount * sizeof(float));
-    for (j = 0; j < queueFamilyProperties[i].queueCount; j++) {
+        (float *)malloc(queueFamilies[i].queueCount * sizeof(float));
+    if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+      queueNumber = i;
+    }
+    for (j = 0; j < queueFamilies[i].queueCount; j++) {
       queuePriorities[i][j] = 1.0f;
     }
 
@@ -102,7 +104,7 @@ void vk_createLogicalDevice(void) {
     queueInfo[i].pNext = VK_NULL_HANDLE;
     queueInfo[i].flags = 0;
     queueInfo[i].queueFamilyIndex = i;
-    queueInfo[i].queueCount = queueFamilyProperties[i].queueCount;
+    queueInfo[i].queueCount = queueFamilies[i].queueCount;
     queueInfo[i].pQueuePriorities = queuePriorities[i];
   }
 
@@ -123,7 +125,7 @@ void vk_createLogicalDevice(void) {
     exit(1);
   }
 
-  vkGetDeviceQueue(device, queueFamilyNumber, 0, &queue);
+  vkGetDeviceQueue(device, queueNumber, 0, &queue);
 }
 
 void vk_createInstance(void) {
