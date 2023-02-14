@@ -700,7 +700,23 @@ void vk_cleanup(void) {
   vkDestroyInstance(instance, NULL);
 }
 
+void vk_recreateSwapChain() {
+  vkDeviceWaitIdle(device);
+  size_t i;
+  for (i = 0; i < swapChainImageCount; i++) {
+    vkDestroyFramebuffer(device, framebuffers[i], NULL);
+  }
+  for (i = 0; i < swapChainImageCount; i++) {
+    vkDestroyImageView(device, swapChainImageViews[i], NULL);
+  }
+  vkDestroySwapchainKHR(device, swapChain, NULL);
+  vk_createSwapChain();
+  vk_createImageViews();
+  vk_createFramebuffers();
+}
+
 void glfw_callbacks_size(GLFWwindow *window, int width, int height) {
+  vk_recreateSwapChain();
   printf("Window resized to %dx%d\n", width, height);
 }
 
