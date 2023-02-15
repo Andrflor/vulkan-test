@@ -16,7 +16,10 @@ glfwSetCharModsCallback - triggers when a Unicode character is input with a
 specific modifier. glfwSetJoystickCallback - triggers when a joystick is
 connected or disconnected */
 
-/* TODO: figure out how to properly set VK to resize and draw black */
+/* Here are some vulkan optimizations
+use separates queues for graphics and present
+select physical device based on property ranking
+add multiple frame in flight to avoid host idle */
 
 GLFWwindow *window;
 VkInstance instance;
@@ -337,18 +340,6 @@ void vk_createGraphicsPipeline(void) {
   inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
   inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
 
-  VkViewport viewport = {};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  viewport.width = (float)swapChainExtent.width;
-  viewport.height = (float)swapChainExtent.height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-
-  VkRect2D scissor = {};
-  scissor.offset = (VkOffset2D){0, 0};
-  scissor.extent = swapChainExtent;
-
   VkPipelineViewportStateCreateInfo viewportStateInfo = {};
   viewportStateInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -562,7 +553,7 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
   renderPassInfo.renderArea.offset = (VkOffset2D){0, 0};
   renderPassInfo.renderArea.extent = swapChainExtent;
 
-  VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+  VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearColor;
 
@@ -702,6 +693,12 @@ void vk_cleanup(void) {
 
 void vk_recreateSwapChain() {
   vkDeviceWaitIdle(device);
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window, &width, &height);
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(window, &width, &height);
+    glfwWaitEvents();
+  }
   size_t i;
   for (i = 0; i < swapChainImageCount; i++) {
     vkDestroyFramebuffer(device, framebuffers[i], NULL);
@@ -761,7 +758,7 @@ void glfw_createWindow(void) {
   }
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  window = glfwCreateWindow(800, 600, "Hello Vulkan", NULL, NULL);
+  window = glfwCreateWindow(1920, 1080, "Hello Vulkan", NULL, NULL);
   if (!window) {
     printf("Failed to create GLFW window\n");
     glfwTerminate();
