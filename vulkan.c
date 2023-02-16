@@ -7,6 +7,33 @@
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.h"
 
+typedef struct {
+  float x;
+  float y;
+} vec2;
+
+typedef struct {
+  float x;
+  float y;
+  float z;
+} vec3;
+
+typedef struct {
+  float x;
+  float y;
+  float z;
+  float w;
+} vec4;
+
+typedef struct {
+  vec2 pos;
+  vec3 color;
+} Vertex;
+
+Vertex vertices[] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                     {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                     {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+
 /* Here are some other callbacks
 glfwSetDropCallback - triggers when a file or text is dropped onto the window.
 glfwSetCursorEnterCallback - triggers when the mouse enters or leaves the
@@ -39,6 +66,8 @@ VkFramebuffer *framebuffers;
 VkPipelineLayout pipelineLayout;
 VkPipeline pipeline;
 VkCommandPool commandPool;
+VkBuffer vertexBuffer;
+VkDeviceMemory vertexBufferMemory;
 VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
 uint32_t swapChainImageCount;
@@ -326,13 +355,22 @@ void vk_createGraphicsPipeline(void) {
   dynamicStateInfo.dynamicStateCount = 2;
   dynamicStateInfo.pDynamicStates = dynamicStates;
 
+  VkVertexInputBindingDescription bindingDescription = {};
+  bindingDescription.binding = 0;
+  bindingDescription.stride = sizeof(Vertex);
+  bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+  VkVertexInputAttributeDescription Attributedescriptions[] = {
+      {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, pos)},
+      {0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)}};
+
   VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
   vertexInputInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputInfo.vertexBindingDescriptionCount = 0;
-  vertexInputInfo.pVertexBindingDescriptions = NULL;
-  vertexInputInfo.vertexAttributeDescriptionCount = 0;
-  vertexInputInfo.pVertexAttributeDescriptions = NULL;
+  vertexInputInfo.vertexBindingDescriptionCount = 1;
+  vertexInputInfo.vertexAttributeDescriptionCount = 2;
+  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+  vertexInputInfo.pVertexAttributeDescriptions = Attributedescriptions;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
   inputAssemblyInfo.sType =
@@ -518,6 +556,39 @@ void vk_createCommandPool(void) {
   }
 }
 
+void vk_createVertexBuffer(void) {
+  VkBufferCreateInfo bufferInfo = {};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.size = sizeof(Vertex) * 2;
+  bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  if (vkCreateBuffer(device, &bufferInfo, NULL, &vertexBuffer) != VK_SUCCESS) {
+    printf("Failed to create vk vertex buffer\n");
+    exit(1);
+  }
+
+  VkMemoryRequirements memRequirements;
+  vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+  VkMemoryAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = vk_findMemoryType(
+      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+  if (vkAllocateMemory(device, &allocInfo, NULL, &vertexBufferMemory) !=
+      VK_SUCCESS) {
+    printf("Failed to allocate vk vertex buffer memory\n");
+  }
+
+  vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+}
+
 void vk_createCommandBuffer(void) {
   VkCommandBufferAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -663,6 +734,7 @@ void vk_init(void) {
   vk_createFramebuffers();
   vk_createGraphicsPipeline();
   vk_createCommandPool();
+  vk_createVertexBuffer();
   vk_createCommandBuffer();
   vk_createSyncObjects();
 }
@@ -687,6 +759,8 @@ void vk_cleanup(void) {
   }
   vkDestroySwapchainKHR(device, swapChain, NULL);
   vkDestroySurfaceKHR(instance, surface, NULL);
+  vkDestroyBuffer(device, vertexBuffer, NULL);
+  vkFreeMemory(device, vertexBufferMemory, NULL);
   vkDestroyDevice(device, NULL);
   vkDestroyInstance(instance, NULL);
 }
