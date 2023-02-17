@@ -73,6 +73,8 @@ VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
 uint32_t swapChainImageCount;
 
+size_t graphicQueueFamilyIndex;
+
 VkSemaphore imageAvailableSemaphore;
 VkSemaphore renderFinishedSemaphore;
 VkFence inFlightFence;
@@ -119,7 +121,6 @@ int vk_checkValidationLayerSupport(const char **validationLayers,
 
     size_t j;
     for (j = 0; j < availableLayerCount; j++) {
-
       if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
         layerFound = 1;
         break;
@@ -150,14 +151,13 @@ void vk_createLogicalDevice(void) {
   float **queuePriorities =
       (float **)malloc(queueFamilyCount * sizeof(float *));
 
-  size_t queueNumber;
   size_t i;
   size_t j;
   for (i = 0; i < queueFamilyCount; i++) {
     queuePriorities[i] =
         (float *)malloc(queueFamilies[i].queueCount * sizeof(float));
     if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      queueNumber = i;
+      graphicQueueFamilyIndex = i;
     }
     for (j = 0; j < queueFamilies[i].queueCount; j++) {
       queuePriorities[i][j] = 1.0f;
@@ -188,7 +188,7 @@ void vk_createLogicalDevice(void) {
     exit(1);
   }
 
-  vkGetDeviceQueue(device, queueNumber, 0, &queue);
+  vkGetDeviceQueue(device, graphicQueueFamilyIndex, 0, &queue);
 }
 
 void vk_createInstance(void) {
@@ -582,14 +582,11 @@ void vk_createFramebuffers(void) {
 }
 
 void vk_createCommandPool(void) {
-  uint32_t queueFamilyNumber = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyNumber,
-                                           VK_NULL_HANDLE);
 
   VkCommandPoolCreateInfo poolInfo = {};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = queueFamilyNumber;
+  poolInfo.queueFamilyIndex = graphicQueueFamilyIndex;
 
   VkResult result = vkCreateCommandPool(device, &poolInfo, NULL, &commandPool);
   if (result != VK_SUCCESS) {
@@ -620,9 +617,9 @@ void vk_createVertexBuffer(void) {
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
 
-  allocInfo.memoryTypeIndex = vk_findMemoryType(
-      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  //  allocInfo.memoryTypeIndex = vk_findMemoryType(
+  //      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+  //                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if (memRequirements.memoryTypeBits & (1 << i)) {
