@@ -619,11 +619,17 @@ void vk_createVertexBuffer(void) {
   VkMemoryAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
-  /*
+
   allocInfo.memoryTypeIndex = vk_findMemoryType(
       memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-                                          */
+
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if (memRequirements.memoryTypeBits & (1 << i)) {
+      allocInfo.memoryTypeIndex = i;
+      break;
+    }
+  }
 
   if (vkAllocateMemory(device, &allocInfo, NULL, &vertexBufferMemory) !=
       VK_SUCCESS) {
