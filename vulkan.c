@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <vulkan/vulkan_core.h>
 
 #define GLFW_INCLUDE_VULKAN
@@ -101,6 +102,36 @@ void vk_pickPhysicalDevice(void) {
 
   physicalDevice = physicalDevices[0];
 }
+
+int vk_checkValidationLayerSupport(const char **validationLayers,
+                                   uint32_t layerCount) {
+
+  uint32_t availableLayerCount;
+  vkEnumerateInstanceLayerProperties(&availableLayerCount, NULL);
+
+  VkLayerProperties availableLayers[availableLayerCount];
+  vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers);
+
+  size_t i;
+  int layerFound;
+  for (i = 0; i < layerCount; i++) {
+    layerFound = 0;
+
+    size_t j;
+    for (j = 0; j < availableLayerCount; j++) {
+
+      if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
+        layerFound = 1;
+        break;
+      }
+    }
+
+    if (!layerFound)
+      return 0;
+  }
+  return 1;
+}
+
 void vk_createLogicalDevice(void) {
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
@@ -175,6 +206,17 @@ void vk_createInstance(void) {
   instanceInfo.ppEnabledExtensionNames =
       glfwGetRequiredInstanceExtensions(&count);
   instanceInfo.enabledExtensionCount = count;
+
+  /* TODO: only use the layers in debug mode */
+  uint32_t validationLayerCount = 1;
+  const char *validationLayers[] = {"VK_LAYER_AMD_switchable_graphics_64"};
+  if (!vk_checkValidationLayerSupport(validationLayers, validationLayerCount)) {
+    instanceInfo.enabledLayerCount = 0;
+    printf("Validation layers are not available on that machine\n");
+  } else {
+    instanceInfo.enabledLayerCount = validationLayerCount;
+    instanceInfo.ppEnabledLayerNames = validationLayers;
+  }
 
   VkResult result = vkCreateInstance(&instanceInfo, NULL, &instance);
   if (result != VK_SUCCESS) {
@@ -577,9 +619,11 @@ void vk_createVertexBuffer(void) {
   VkMemoryAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
+  /*
   allocInfo.memoryTypeIndex = vk_findMemoryType(
       memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                          */
 
   if (vkAllocateMemory(device, &allocInfo, NULL, &vertexBufferMemory) !=
       VK_SUCCESS) {
