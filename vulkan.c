@@ -121,6 +121,7 @@ int vk_checkValidationLayerSupport(const char **validationLayers,
 
     size_t j;
     for (j = 0; j < availableLayerCount; j++) {
+
       if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0) {
         layerFound = 1;
         break;
@@ -209,7 +210,7 @@ void vk_createInstance(void) {
 
   /* TODO: only use the layers in debug mode */
   uint32_t validationLayerCount = 1;
-  const char *validationLayers[] = {"VK_LAYER_AMD_switchable_graphics_64"};
+  const char *validationLayers[] = {"VK_LAYER_KHRONOS_validation"};
   if (!vk_checkValidationLayerSupport(validationLayers, validationLayerCount)) {
     instanceInfo.enabledLayerCount = 0;
     printf("Validation layers are not available on that machine\n");
@@ -595,6 +596,20 @@ void vk_createCommandPool(void) {
   }
 }
 
+uint32_t vk_findMemoryType(uint32_t typeFilter,
+                           VkMemoryPropertyFlags propertyFlags) {
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags &
+                                  propertyFlags) == propertyFlags) {
+      return i;
+    }
+  }
+  printf("Failed to find suitable memory to allocate\n");
+  exit(1);
+}
+
 void vk_createVertexBuffer(void) {
   VkBufferCreateInfo bufferInfo = {};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -610,23 +625,13 @@ void vk_createVertexBuffer(void) {
   VkMemoryRequirements memRequirements;
   vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
 
-  VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
   VkMemoryAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
 
-  //  allocInfo.memoryTypeIndex = vk_findMemoryType(
-  //      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-  //                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if (memRequirements.memoryTypeBits & (1 << i)) {
-      allocInfo.memoryTypeIndex = i;
-      break;
-    }
-  }
+  allocInfo.memoryTypeIndex = vk_findMemoryType(
+      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   if (vkAllocateMemory(device, &allocInfo, NULL, &vertexBufferMemory) !=
       VK_SUCCESS) {
