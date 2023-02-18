@@ -35,6 +35,8 @@ Vertex vertices[] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
                      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
+uint32_t verticesSize = 3;
+
 /* Here are some other callbacks
 glfwSetDropCallback - triggers when a file or text is dropped onto the window.
 glfwSetCursorEnterCallback - triggers when the mouse enters or leaves the
@@ -613,7 +615,7 @@ uint32_t vk_findMemoryType(uint32_t typeFilter,
 void vk_createVertexBuffer(void) {
   VkBufferCreateInfo bufferInfo = {};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.size = sizeof(Vertex) * 2;
+  bufferInfo.size = sizeof(vertices) * verticesSize;
   bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -639,6 +641,11 @@ void vk_createVertexBuffer(void) {
   }
 
   vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+
+  void *data;
+  vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+  memcpy(data, vertices, (size_t)bufferInfo.size);
+  vkUnmapMemory(device, vertexBufferMemory);
 }
 
 void vk_createCommandBuffer(void) {
@@ -685,6 +692,10 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
 
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
+  VkBuffer vertexBuffers[] = {vertexBuffer};
+  VkDeviceSize offsets[] = {0};
+  vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
   VkViewport viewport = {};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
@@ -700,7 +711,7 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
   vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
   vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-  vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+  vkCmdDraw(commandBuffer, verticesSize, 1, 0, 0);
   vkCmdEndRenderPass(commandBuffer);
 
   result = vkEndCommandBuffer(commandBuffer);
