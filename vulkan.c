@@ -405,7 +405,7 @@ void vk_createGraphicsPipeline(void) {
   bindingDescription.stride = sizeof(Vertex);
   bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-  VkVertexInputAttributeDescription Attributedescriptions[] = {
+  VkVertexInputAttributeDescription attributedescriptions[] = {
       {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, pos)},
       {0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)}};
 
@@ -415,7 +415,7 @@ void vk_createGraphicsPipeline(void) {
   vertexInputInfo.vertexBindingDescriptionCount = 1;
   vertexInputInfo.vertexAttributeDescriptionCount = 2;
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-  vertexInputInfo.pVertexAttributeDescriptions = Attributedescriptions;
+  vertexInputInfo.pVertexAttributeDescriptions = attributedescriptions;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
   inputAssemblyInfo.sType =
@@ -615,7 +615,7 @@ uint32_t vk_findMemoryType(uint32_t typeFilter,
 void vk_createVertexBuffer(void) {
   VkBufferCreateInfo bufferInfo = {};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.size = sizeof(vertices) * verticesSize;
+  bufferInfo.size = sizeof(Vertex) * verticesSize;
   bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
