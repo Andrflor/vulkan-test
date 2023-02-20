@@ -612,39 +612,47 @@ uint32_t vk_findMemoryType(uint32_t typeFilter,
   exit(1);
 }
 
-void vk_createVertexBuffer(void) {
+void vk_createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                     VkMemoryPropertyFlags properties, VkBuffer *buffer,
+                     VkDeviceMemory *bufferMemory) {
   VkBufferCreateInfo bufferInfo = {};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.size = sizeof(Vertex) * verticesSize;
-  bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  bufferInfo.size = size;
+  bufferInfo.usage = usage;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  if (vkCreateBuffer(device, &bufferInfo, NULL, &vertexBuffer) != VK_SUCCESS) {
-    printf("Failed to create vk vertex buffer\n");
+  if (vkCreateBuffer(device, &bufferInfo, NULL, buffer) != VK_SUCCESS) {
+    printf("Failed to create vk buffer\n");
     exit(1);
   }
 
   VkMemoryRequirements memRequirements;
-  vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+  vkGetBufferMemoryRequirements(device, *buffer, &memRequirements);
 
   VkMemoryAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex =
+      vk_findMemoryType(memRequirements.memoryTypeBits, properties);
 
-  allocInfo.memoryTypeIndex = vk_findMemoryType(
-      memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-  if (vkAllocateMemory(device, &allocInfo, NULL, &vertexBufferMemory) !=
-      VK_SUCCESS) {
-    printf("Failed to allocate vk vertex buffer memory\n");
+  if (vkAllocateMemory(device, &allocInfo, NULL, bufferMemory) != VK_SUCCESS) {
+    printf("Failed to allocate vk memory\n");
+    exit(1);
   }
 
-  vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+  vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
+}
+
+void vk_createVertexBuffer(void) {
+  VkDeviceSize bufferSize = sizeof(Vertex) * verticesSize;
+  vk_createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                  &vertexBuffer, &vertexBufferMemory);
 
   void *data;
-  vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-  memcpy(data, vertices, (size_t)bufferInfo.size);
+  vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data);
+  memcpy(data, vertices, (size_t)bufferSize);
   vkUnmapMemory(device, vertexBufferMemory);
 }
 
@@ -828,7 +836,7 @@ void vk_cleanup(void) {
   vkDestroyInstance(instance, NULL);
 }
 
-void vk_recreateSwapChain() {
+void vk_recreateSwapChain(void) {
   vkDeviceWaitIdle(device);
   int width = 0, height = 0;
   glfwGetFramebufferSize(window, &width, &height);
