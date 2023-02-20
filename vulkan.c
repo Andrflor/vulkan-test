@@ -31,11 +31,12 @@ typedef struct {
   vec3 color;
 } Vertex;
 
-Vertex vertices[] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                     {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-                     {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+Vertex vertices[] = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                     {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                     {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+                     {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 
-uint32_t verticesSize = 3;
+uint32_t verticesSize = sizeof(vertices) / sizeof(Vertex);
 
 /* Here are some other callbacks
 glfwSetDropCallback - triggers when a file or text is dropped onto the window.
@@ -643,17 +644,66 @@ void vk_createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
 }
 
+void vk_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+  VkCommandBufferAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = commandPool;
+  allocInfo.commandBufferCount = 1;
+
+  VkCommandBuffer commandBuffer;
+  vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+  VkCommandBufferBeginInfo beginInfo = {};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+  VkBufferCopy copyRegion = {};
+  copyRegion.srcOffset = 0;
+  copyRegion.dstOffset = 0;
+  copyRegion.size = size;
+  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+  vkEndCommandBuffer(commandBuffer);
+
+  VkSubmitInfo submitInfo = {};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
+
+  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueWaitIdle(queue);
+
+  vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
 void vk_createVertexBuffer(void) {
   VkDeviceSize bufferSize = sizeof(Vertex) * verticesSize;
-  vk_createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+
+  vk_createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                  &vertexBuffer, &vertexBufferMemory);
+                  &stagingBuffer, &stagingBufferMemory);
 
   void *data;
-  vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data);
+  vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
   memcpy(data, vertices, (size_t)bufferSize);
-  vkUnmapMemory(device, vertexBufferMemory);
+  vkUnmapMemory(device, stagingBufferMemory);
+
+  vk_createBuffer(
+      bufferSize,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &vertexBuffer, &vertexBufferMemory);
+
+  vk_copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+  vkDestroyBuffer(device, stagingBuffer, NULL);
+  vkFreeMemory(device, stagingBufferMemory, NULL);
 }
 
 void vk_createCommandBuffer(void) {
