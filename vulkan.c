@@ -27,9 +27,22 @@ typedef struct {
 } vec4;
 
 typedef struct {
+  vec4 a;
+  vec4 b;
+  vec4 c;
+  vec4 d;
+} mat4;
+
+typedef struct {
   vec2 pos;
   vec3 color;
 } Vertex;
+
+typedef struct {
+  mat4 model;
+  mat4 view;
+  mat4 proj;
+} UniformBufferObject;
 
 Vertex vertices[] = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                      {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
