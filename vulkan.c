@@ -36,7 +36,9 @@ Vertex vertices[] = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                      {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
                      {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 
-uint32_t verticesSize = sizeof(vertices) / sizeof(Vertex);
+uint32_t verticesSize = sizeof(vertices) / sizeof(vertices[0]);
+const uint32_t indices[] = {0, 1, 2, 2, 3, 0};
+uint32_t indicesSize = sizeof(indices) / sizeof(indices[0]);
 
 /* Here are some other callbacks
 glfwSetDropCallback - triggers when a file or text is dropped onto the window.
@@ -72,6 +74,8 @@ VkPipeline pipeline;
 VkCommandPool commandPool;
 VkBuffer vertexBuffer;
 VkDeviceMemory vertexBufferMemory;
+VkBuffer indexBuffer;
+VkDeviceMemory indexBufferMemory;
 VkCommandBuffer commandBuffer;
 float queuePriority = 1.0f;
 uint32_t swapChainImageCount;
@@ -679,6 +683,32 @@ void vk_copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
   vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
+void vk_createIndexBuffer(void) {
+  VkDeviceSize bufferSize = sizeof(indices);
+
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+  vk_createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                  &stagingBuffer, &stagingBufferMemory);
+
+  void *data;
+  vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+  memcpy(data, indices, (size_t)bufferSize);
+  vkUnmapMemory(device, stagingBufferMemory);
+
+  vk_createBuffer(
+      bufferSize,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &indexBuffer, &indexBufferMemory);
+
+  vk_copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+  vkDestroyBuffer(device, stagingBuffer, NULL);
+  vkFreeMemory(device, stagingBufferMemory, NULL);
+}
+
 void vk_createVertexBuffer(void) {
   VkDeviceSize bufferSize = sizeof(Vertex) * verticesSize;
 
@@ -753,6 +783,7 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
   VkBuffer vertexBuffers[] = {vertexBuffer};
   VkDeviceSize offsets[] = {0};
   vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+  vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
   VkViewport viewport = {};
   viewport.x = 0.0f;
@@ -769,7 +800,7 @@ void vk_recordCommandBuffer(VkCommandBuffer commandBuffer,
   vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
   vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-  vkCmdDraw(commandBuffer, verticesSize, 1, 0, 0);
+  vkCmdDrawIndexed(commandBuffer, indicesSize, 1, 0, 0, 0);
   vkCmdEndRenderPass(commandBuffer);
 
   result = vkEndCommandBuffer(commandBuffer);
@@ -856,6 +887,7 @@ void vk_init(void) {
   vk_createGraphicsPipeline();
   vk_createCommandPool();
   vk_createVertexBuffer();
+  vk_createIndexBuffer();
   vk_createCommandBuffer();
   vk_createSyncObjects();
 }
@@ -880,6 +912,8 @@ void vk_cleanup(void) {
   }
   vkDestroySwapchainKHR(device, swapChain, NULL);
   vkDestroySurfaceKHR(instance, surface, NULL);
+  vkDestroyBuffer(device, indexBuffer, NULL);
+  vkFreeMemory(device, indexBufferMemory, NULL);
   vkDestroyBuffer(device, vertexBuffer, NULL);
   vkFreeMemory(device, vertexBufferMemory, NULL);
   vkDestroyDevice(device, NULL);
