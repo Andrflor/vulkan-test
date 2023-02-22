@@ -8,6 +8,8 @@
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.h"
 
+#define MAX_FRAMES_IN_FLIGHT 2
+
 typedef struct {
   float x;
   float y;
@@ -82,6 +84,10 @@ VkShaderModule fragShaderModule;
 VkImageView *swapChainImageViews;
 VkRenderPass renderPass;
 VkFramebuffer *framebuffers;
+VkBuffer *uniformBuffers;
+VkDeviceMemory *uniformBuffersMemory;
+void **uniformBuffersMapped;
+VkDescriptorSetLayout descriptorSetLayout;
 VkPipelineLayout pipelineLayout;
 VkPipeline pipeline;
 VkCommandPool commandPool;
@@ -389,6 +395,26 @@ VkShaderModule vk_createShaderModule(char *filename) {
   return shaderModule;
 }
 
+void vk_createDescriptorSetLayout(void) {
+  VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+  uboLayoutBinding.binding = 0;
+  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding.descriptorCount = 1;
+  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  uboLayoutBinding.pImmutableSamplers = NULL;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &uboLayoutBinding;
+
+  if (vkCreateDescriptorSetLayout(device, &layoutInfo, NULL,
+                                  &descriptorSetLayout) != VK_SUCCESS) {
+    printf("Failed to create vk descriptor set layout\n");
+    exit(1);
+  }
+}
+
 void vk_createGraphicsPipeline(void) {
   vertShaderModule = vk_createShaderModule("shaders/triangle-vert.spv");
   fragShaderModule = vk_createShaderModule("shaders/triangle-frag.spv");
@@ -497,8 +523,8 @@ void vk_createGraphicsPipeline(void) {
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;
-  pipelineLayoutInfo.pSetLayouts = NULL;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
   pipelineLayoutInfo.pushConstantRangeCount = 0;
   pipelineLayoutInfo.pPushConstantRanges = NULL;
 
@@ -749,6 +775,25 @@ void vk_createVertexBuffer(void) {
   vkFreeMemory(device, stagingBufferMemory, NULL);
 }
 
+void vk_createUniformBuffers(void) {
+
+  VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+  uniformBuffers = malloc(sizeof(VkBuffer) * MAX_FRAMES_IN_FLIGHT);
+  uniformBuffersMemory = malloc(sizeof(VkDeviceMemory) * MAX_FRAMES_IN_FLIGHT);
+  uniformBuffersMapped = malloc(sizeof(void *) * MAX_FRAMES_IN_FLIGHT);
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    vk_createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    &uniformBuffers[i], &uniformBuffersMemory[i]);
+
+    vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0,
+                &uniformBuffersMapped[i]);
+  }
+}
+
 void vk_createCommandBuffer(void) {
   VkCommandBufferAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -841,6 +886,8 @@ void vk_createSyncObjects(void) {
   }
 }
 
+void vk_updateUniformBuffer(uint32_t currentImage) {}
+
 void vk_renderFrame(void) {
   vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
   vkResetFences(device, 1, &inFlightFence);
@@ -850,6 +897,8 @@ void vk_renderFrame(void) {
 
   vkResetCommandBuffer(commandBuffer, 0);
   vk_recordCommandBuffer(commandBuffer, imageIndex);
+
+  vk_updateUniformBuffer(imageIndex);
 
   VkSubmitInfo submitInfo = {};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -897,10 +946,12 @@ void vk_init(void) {
   vk_createImageViews();
   vk_createRenderPass();
   vk_createFramebuffers();
+  vk_createDescriptorSetLayout();
   vk_createGraphicsPipeline();
   vk_createCommandPool();
   vk_createVertexBuffer();
   vk_createIndexBuffer();
+  vk_createUniformBuffers();
   vk_createCommandBuffer();
   vk_createSyncObjects();
 }
@@ -925,6 +976,12 @@ void vk_cleanup(void) {
   }
   vkDestroySwapchainKHR(device, swapChain, NULL);
   vkDestroySurfaceKHR(instance, surface, NULL);
+
+  for (i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    vkDestroyBuffer(device, uniformBuffers[i], NULL);
+    vkFreeMemory(device, uniformBuffersMemory[i], NULL);
+  }
+  vkDestroyDescriptorSetLayout(device, descriptorSetLayout, NULL);
   vkDestroyBuffer(device, indexBuffer, NULL);
   vkFreeMemory(device, indexBufferMemory, NULL);
   vkDestroyBuffer(device, vertexBuffer, NULL);
